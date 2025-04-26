@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Cardápio Digital</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fafafa;
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+
+    h1 {
+      color: #d35400;
+      margin-bottom: 1rem;
+    }
+
+    form {
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 10px;
+      max-width: 600px;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 1rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    input.valid, select.valid, textarea.valid {
+      border-color: #2ecc71;
+    }
+
+    input.invalid, select.invalid, textarea.invalid {
+      border-color: #e74c3c;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      background: #e67e22;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #d35400;
+    }
+
+    #listaItens {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 700px;
+    }
+
+    .card {
+      background: white;
+      border-left: 6px solid #e67e22;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .info {
+      flex: 1;
+    }
+
+    .info h3 {
+      margin: 0;
+      color: #d35400;
+    }
+
+    .info p {
+      margin: 4px 0;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .actions button {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .edit {
+      background: #3498db;
+      color: white;
+    }
+
+    .delete {
+      background: #e74c3c;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Cardápio Digital</h1>
+
+  <form id="formCardapio">
+    <input type="hidden" id="itemId">
+
+    <label>Nome do Prato</label>
+    <input type="text" id="nome" required>
+
+    <label>Preço (R$)</label>
+    <input type="number" id="preco" step="0.01" required>
+
+    <label>Descrição</label>
+    <textarea id="descricao" rows="2" required></textarea>
+
+    <label>Categoria</label>
+    <select id="categoria" required>
+      <option value="">Selecione</option>
+      <option value="Entrada">Entrada</option>
+      <option value="Prato Principal">Prato Principal</option>
+      <option value="Sobremesa">Sobremesa</option>
+      <option value="Bebida">Bebida</option>
+    </select>
+
+    <label>CEP do Fornecedor</label>
+    <input type="text" id="cep" maxlength="9" required>
+
+    <button type="submit">Adicionar ao Cardápio</button>
+  </form>
+
+  <h2>Itens do Cardápio</h2>
+  <div id="listaItens"></div>
+
+  <script>
+    const form = document.getElementById('formCardapio');
+    const lista = document.getElementById('listaItens');
+    let cardapio = []; 
+
+
+    function renderizarCardapio() {
+      console.log("Renderizando cardápio");
+      lista.innerHTML = '';
+      if (cardapio.length === 0) {
+        lista.innerHTML = "<p>Não há itens no cardápio.</p>";
+      } else {
+        cardapio.forEach((item, index) => {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `
+            <div class="info">
+              <h3>${item.nome} - R$${item.preco}</h3>
+              <p><strong>Categoria:</strong> ${item.categoria}</p>
+              <p>${item.descricao}</p>
+            </div>
+            <div class="actions">
+              <button class="edit" onclick="editar(${index})">Editar</button>
+              <button class="delete" onclick="remover(${index})">Excluir</button>
+            </div>
+          `;
+          lista.appendChild(div);
+        });
+      }
+    }
+
+  
+    function validar(id, condicao) {
+      const el = document.getElementById(id);
+      el.classList.remove('valid', 'invalid');
+      el.classList.add(condicao ? 'valid' : 'invalid');
+      return condicao;
+    }
+
+    
+    function buscarCep(cep) {
+      if (cep.length === 8 && !cep.includes('-')) {
+        cep = cep.slice(0, 5) + '-' + cep.slice(5);
+      }
+
+      if (!/^\d{5}-\d{3}$/.test(cep)) {
+        alert("Formato de CEP inválido. Por favor, insira um CEP válido.");
+        throw new Error("Formato de CEP inválido");
+      }
+
+      return fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("Erro ao buscar o CEP. Tente novamente.");
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (data.erro) {
+            alert("CEP não encontrado. Verifique o CEP e tente novamente.");
+            throw new Error("CEP não encontrado");
+          }
+          return data;
+        })
+        .catch(error => {
+          console.error("Erro na busca do CEP:", error);
+          alert("Houve um erro ao buscar o CEP. Verifique a conexão ou tente novamente mais tarde.");
+        });
+    }
+
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const nome = document.getElementById('nome').value.trim();
+      const preco = parseFloat(document.getElementById('preco').value);
+      const descricao = document.getElementById('descricao').value.trim();
+      const categoria = document.getElementById('categoria').value;
+      const cep = document.getElementById('cep').value.trim();
+      const id = document.getElementById('itemId').value;
+
+      const v1 = validar('nome', nome.length >= 2);
+      const v2 = validar('preco', !isNaN(preco) && preco > 0);
+      const v3 = validar('descricao', descricao.length >= 5);
+      const v4 = validar('categoria', categoria !== '');
+      const v5 = validar('cep', /^[0-9]{5}-?[0-9]{3}$/.test(cep));
+
+      if (v1 && v2 && v3 && v4 && v5) {
+        try {
+          const endereco = await buscarCep(cep);
+          console.log("Endereço encontrado:", endereco);
+          alert(`Endereço: ${endereco.logradouro}, ${endereco.localidade}`);
+
+          const novo = { nome, preco, descricao, categoria, cep };
+
+          if (id) {
+            console.log("Atualizando item:", id);
+            cardapio[id] = novo;
+          } else {
+            console.log("Adicionando novo item:", novo);
+            cardapio.push(novo);
+          }
+
+       
+          localStorage.setItem('cardapio', JSON.stringify(cardapio));
+          form.reset();
+          renderizarCardapio();
+          document.getElementById('itemId').value = '';
+        } catch (err) {
+          console.error("Erro ao processar:", err);
+          alert("Erro ao buscar CEP.");
+        }
+      } else {
+        alert("Preencha todos os campos corretamente.");
+      }
+    });
+
+    function editar(index) {
+      console.log("Editando item:", index);
+      const item = cardapio[index];
+      document.getElementById('nome').value = item.nome;
+      document.getElementById('preco').value = item.preco;
+      document.getElementById('descricao').value = item.descricao;
+      document.getElementById('categoria').value = item.categoria;
+      document.getElementById('cep').value = item.cep;
+      document.getElementById('itemId').value = index;
+    }
+
+    
+    function remover(index) {
+      if (confirm('Remover este item do cardápio?')) {
+        console.log("Removendo item:", index);
+        cardapio.splice(index, 1);
+        localStorage.setItem('cardapio', JSON.stringify(cardapio));
+        renderizarCardapio();
+      }
+    }
+
+    renderizarCardapio();
+  </script>
+</body>
+</html>
